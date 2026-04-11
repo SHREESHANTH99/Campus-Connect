@@ -1,190 +1,179 @@
 # Campus Connect
-> The Anonymous Social Hub for Engineering Students
 
-## 1. Core Concept & Vision
+Anonymous, campus-first social platform built for students.
 
-Campus Connect is an all-in-one anonymous social hub built exclusively for engineering college students. It combines the best elements of peer-to-peer networking, anonymous forums, and interactive platforms, hyper-targeted to students who seek connection, entertainment, and utility without revealing their identity.
+Campus Connect combines confessions, events, clubs, polls, profile systems, and realtime chat into one developer-friendly full-stack project.
 
-### The Core Problem We Solve
-* **Social Anxiety:** Students struggle to make friends without awkward introductions.
-* **Study Isolation:** Finding motivated study partners for specific subjects is challenging.
-* **Lack of Safe Spaces:** Students cannot openly discuss academic struggles, professors, or personal issues.
-* **Judgment-Based Networking:** Traditional platforms focus on superficial metrics rather than personality or compatibility.
-* **Hidden Information:** Real placement statistics, interview experiences, and professor ratings are rarely shared honestly.
-* **Boredom:** A lack of engaging, student-specific platforms to utilize during downtime.
+## Why Developers Like This Repo
 
-### Our Solution
-A unified platform where engineering students can anonymously chat, confess, debate, find study partners, explore friendships, vent stress, share content, and discover campus secrets. All interactions are protected by strict anonymity protocols, ensuring a judgment-free environment.
+- Real product domain with clear user value and growth potential.
+- Modern stack: Next.js frontend + FastAPI backend + PostgreSQL + Redis.
+- End-to-end architecture already in place and actively evolving.
+- Good contribution surface for frontend, backend, infra, and product experimentation.
+- Built-in integration smoke tests to ship changes with confidence.
 
----
+## What Is Already Built
 
-## 2. Key Features
+### Backend (FastAPI)
 
-### 2.1 Anonymous Random Chat
-An instant pairing system that connects online engineering students. Identities remain hidden unless mutually revealed. 
-* **Chat Modes:** Study Mode (academic pairing), Vent Mode (emotional support), Fun Mode (casual interactions).
-* **Advanced Filters:** Language preferences, college-specific matching, and interest-based tags.
-* **Privacy:** No chat history is stored after the session concludes.
+- OTP login flow with JWT auth.
+- Anonymous confessions feed:
+	- create, vote, react, comment, report
+	- hot/trending support
+- Polls:
+	- create, list with pagination shape, vote, live results endpoint
+- Events:
+	- create/list/get/update/cancel
+	- RSVP and attendees pagination
+	- ownership transfer endpoint
+- Clubs:
+	- create/list/get/update
+	- join/leave toggle
+	- members pagination
+	- lead transfer endpoint
+- Notifications:
+	- list + mark as read
+- Profile:
+	- read/update self profile
+	- role update endpoint (admin-gated)
+- Search:
+	- full-text style search across confessions, events, clubs
+	- fallback behavior when full-text query path fails
+- Caching strategy:
+	- hot feed, event details, club members, user karma
+- Rate limiting middleware:
+	- endpoint-specific limits
+	- Redis-first with configurable strict fail-fast mode
+- Moderation service:
+	- confession/comment moderation aligned to shared thresholds
 
-### 2.2 Enhanced Confession Wall
-A categorized feed for completely anonymous confessions with threading and reactions.
-* **Categories:** Academics, Hostel Life, Campus Secrets, Career Anxiety, etc.
-* **Features:** Trending sections, college-specific filtering, and screenshot protection via algorithmic watermarking.
+### Frontend (Next.js)
 
-### 2.3 Anonymous Friendship & Dating Profiles
-Personality-first matching without photos or real names. 
-* **Mechanics:** Swipe-based matching based purely on interests, hobbies, and humor style.
-* **Progression:** Optional identity reveal upon mutual interest, supported by conversation ice-breakers.
+- 3D-driven landing experience aligned with custom UI components.
+- App routes for auth, dashboard, confessions, polls, events, clubs, chat, profile, notifications, settings, leaderboard.
+- API client wired to backend endpoints for major Phase 3 flows.
+- Confessions interaction UX with cards/modals/feed components.
 
-### 2.4 Study Buddy Matcher
-An academic matching algorithm pairing students based on branch, year, subjects, and study style.
-* **Tools:** Shared Pomodoro timers, study streaks, accountability tracking, and secure group study rooms (up to 5 members).
+### Infrastructure and DevOps
 
-### 2.5 Anonymous Polls & Live Debates
-Interactive public forums for real-time discussions.
-* **Content:** Weekly controversial takes, placement versus higher studies debates, and live vote counting.
+- Docker Compose setup for PostgreSQL + Redis + app services.
+- Alembic migrations with current schema evolution through Phase 3 tables.
+- Smoke tests for key integration behaviors.
 
-### 2.6 Random Q&A (Anonymous Messages)
-Personal, shareable links allowing incoming anonymous messages, compliments, or questions.
-* **Features:** AI-filtered message delivery to block abusive content, with options for public or private replies.
+## Current Architecture
 
-### 2.7 Meme & Content Hub
-A dedicated space for engineering-specific humor.
-* **Mechanics:** Weekly competitions, anonymous leaderboards, and an integrated meme generator utilizing popular templates.
+| Layer | Tech |
+|---|---|
+| Frontend | Next.js (App Router), TypeScript |
+| Backend | FastAPI, SQLAlchemy, Alembic |
+| Database | PostgreSQL |
+| Cache / Rate Limit | Redis |
+| Auth | Phone OTP + JWT |
+| Realtime | WebSocket chat module |
+| Background Jobs | Celery scaffolding |
 
-### 2.8 Campus Events & Anonymous Meetups
-A discovery portal for local student activities.
-* **Use Cases:** Study groups, gaming tournaments, midnight canteen runs, and fitness buddy matching.
+## Quick Start
 
-### 2.9 Placement & Internship Intel
-A verified but anonymous repository of actual interview experiences and salary data.
-* **Value Addition:** Accurate compensation figures, comprehensive interview breakdowns, and honest company culture reviews.
+### 1. Clone
 
-### 2.10 Rant Room (Stress Relief Space)
-A private digital space designed for immediate, unfiltered catharsis.
-* **Mechanics:** Messages self-destruct permanently after submission, accompanied by calming background audio and optional anonymous community support.
+```bash
+git clone <your-repo-url>
+cd campus-connect
+```
 
-### 2.11 Truth or Dare & Anonymous Challenges
-Gamified peer interactions based around random pairings.
-* **Features:** Community point rewards, spectator modes, and tiered achievement statuses.
+### 2. Start Core Services
 
-### 2.12 Anonymous Skill Exchange
-A marketplace for trading theoretical and practical knowledge.
-* **System:** Verified skill tags, anonymous matching, and a reputation tree based on post-exchange feedback.
+```bash
+docker-compose up -d postgres redis
+```
 
-### 2.13 Late Night Chat Rooms
-Topic-based group chats (10-50 users) that activate during specific hours.
-* **Rooms:** Exam Stress, Gaming, Startup Ideas, and general discussion spaces.
-* **Privacy:** Randomly generated usernames per session and 24-hour message self-destruction.
+### 3. Run Backend
 
-### 2.14 Campus Secrets Archive
-A crowd-sourced repository of college-specific life hacks.
-* **Content:** Network access tips, secret study spots, unregistered canteen items, and course selection strategies.
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+```
 
-### 2.15 Mental Health Check-In
-A secure, private module focused on student well-being.
-* **Features:** Device-local daily mood tracking, anonymous peer support groups, and direct connections to verified counseling resources.
+### 4. Run Frontend
 
----
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
 
-## 3. Privacy & Safety Architecture
+### 5. Open App
 
-### Anonymity Protection
-* Phone OTP verification only (no email or social media linkages).
-* Randomized usernames and zero profile picture requirements.
-* Device-based authentication and IP masking.
-* Immediate and complete data wiping for all chat sessions.
+- Frontend: http://localhost:3000
+- API docs: http://localhost:8000/docs
 
-### Safety Measures
-* **Moderation:** Real-time AI content classification to detect and block explicit or abusive material.
-* **Community Controls:** Instant block functionality, community reporting, and escalating device-based bans for offenders.
-* **Verification:** College email domain verification ensures the user base remains exclusive to students.
-* **Encryption:** End-to-end encrypted messaging formats.
+## Local Testing
 
----
+Run backend smoke tests:
 
-## 4. UI/UX Design Direction
+```bash
+cd backend
+python tests/integration/smoke_phase3.py
+```
 
-The interface is engineered to reflect a modern, tech-forward aesthetic tailored specifically for engineering demographics.
-* **Theme:** Dark Cyberpunk (deep dark backgrounds with neon green/blue accents).
-* **Visual Elements:** Glassmorphism panels, grain texture overlays, and animated gradient borders.
-* **Navigation:** Bottom navigation bars, swipeable card stacks, and floating action buttons designed for one-handed smartphone use.
-* **Performance:** Minimal load times, offline Progressive Web App (PWA) support, and default dark mode for reduced eye strain during late-night usage.
+## Project Structure
 
----
+```text
+campus-connect/
+	backend/
+		app/
+			api/
+			core/
+			db/
+			middleware/
+			models/
+			schemas/
+			services/
+			websockets/
+			workers/
+		alembic/
+		tests/
+	frontend/
+		src/
+			app/
+			components/
+			hooks/
+			lib/
+			store/
+```
 
-## 5. Gamification & Engagement
+## Contribution Opportunities
 
-* **Point System:** Users earn points through active participation (posting, helping, chatting) which can be redeemed for custom themes or priority matching.
-* **Achievement Badges:** Tiers such as Night Owl, Meme Lord, Social Butterfly, and Trending user statuses.
-* **Streaks:** Daily login bonuses and continuous study/chat session tracking to build platform habituation.
+High-impact areas open right now:
 
----
+- Better recommendation logic for confessions/events/clubs.
+- Improved chat matching and moderation hardening.
+- Frontend UX polish for events, clubs, and profile flows.
+- More tests: unit, API contract, and E2E.
+- Container optimization and CI workflow setup.
 
-## 6. Technical Architecture
+## Roadmap Snapshot
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Frontend Web** | React.js / Next.js | Web app with Server-Side Rendering (SSR) for fast loading and SEO validation. |
-| **Mobile Apps** | React Native | Cross-platform accessible codebases for iOS and Android environments. |
-| **Real-time Chat** | Socket.io + WebSockets | Facilitates instant anonymous chat and live matchmaking functionalities. |
-| **Backend API** | Node.js + Express | RESTful API architecture handling all primary client-server requests. |
-| **Database** | PostgreSQL + MongoDB | Hybrid storage managing relational user states and flexible document inputs. |
-| **Cache Layer** | Redis | High-speed queue matching and optimized session management. |
-| **Media Storage** | AWS S3 + CloudFront CDN | Distributed file storage for media elements globally. |
-| **Authentication** | JWT + OTP (Twilio) | Token-based stateless authentication leveraging secure mobile verifications. |
-| **AI Moderation** | TensorFlow.js | Active real-time content safety assessment and classification algorithms. |
-| **Hosting** | AWS / Vercel + Railway | Scalable cloud instances operating on microservice parameters. |
+- Done: core anonymous social primitives (auth, confessions, polls, events, clubs, notifications, search).
+- In progress: deeper realtime interactions + stronger moderation/anti-abuse tooling.
+- Next: recommendation engine, analytics, production-grade observability, and contributor tooling.
 
----
+## How To Contribute
 
-## 7. Monetization Strategy
+1. Fork and create a feature branch.
+2. Keep changes focused and include tests when applicable.
+3. Open a PR with:
+	 - What changed
+	 - Why it matters
+	 - Screenshots or API examples if relevant
+4. Be respectful in code review and document non-obvious decisions.
 
-### Free Tier
-Provides core access to all 15 key features, standard anonymity protection, a daily limit on random chats, supported by unobtrusive native advertising.
+## Vision
 
-### Campus Connect Pro
-A premium subscription model offering:
-* Unlimited random chats with granular algorithmic filters.
-* Custom visual themes and exclusive profile badges.
-* Priority matching queues.
-* Advanced post analytics and an entirely ad-free experience.
+Campus Connect aims to be the default anonymous social layer for student communities: safe, engaging, and deeply campus-native.
 
-### Supplemental Revenue Streams
-* Sponsored, verified anonymous polls targeted toward exact student demographics.
-* Relevant, highly targeted advertisements for placement preparation courses and collegiate events.
-* B2B engagements providing anonymized, high-level engagement metrics to educational institutions.
-
----
-
-## 8. Development Roadmap
-
-* **Phase 1 (MVP - Months 1-3):** Anonymous confessions, 1-on-1 random text chat, basic OTP authentication, PWA deployment, and core moderation algorithms.
-* **Phase 2 (Growth - Months 3-6):** Study buddy matching, polls & debates, native iOS/Android applications, meme hub, and initial gamification logic.
-* **Phase 3 (Scale - Months 6-12):** Blind dating metrics, late-night chat rooms, verified placement intel modules, and advanced AI-driven moderation implementations.
-* **Phase 4 (Expansion - Beyond 12 Months):** Anonymous voice/video integrations, AR masks, alumni network onboarding, and comprehensive pan-India/international collegiate scaling.
-
----
-
-## 9. Target Audience & Growth
-
-* **Primary Demographic:** Engineering Students (Aged 18–24).
-* **Tier Strategy:** Initial deployment focusing on Tier 1 institutions (IITs, NITs, BITS) to establish aspirational value, immediately followed by scaling into high-volume Tier 2/3 state and private engineering colleges.
-* **Growth Vectors:** Campus ambassador programs, viral content distribution via existing social networks, and competitive community events to drive organic word-of-mouth adoption.
-
----
-
-## 10. Why This Will Succeed
-
-Campus Connect leverages proven psychological hooks—anonymity, FOMO, community validation, novelty, and tangible academic utility—to create a highly retentive environment. 
-
-### Unique Selling Propositions (USPs)
-1. **Complete Anonymity:** Zero risk of personal identity linkage.
-2. **Exclusivity:** Strictly walled gardens verifying collegiate status.
-3. **All-in-One Utility:** Centralizing functionalities typically fragmented across multiple disparate platforms.
-4. **Unjudged Expression:** Total freedom to communicate safely.
-5. **Hyperlocal Context:** deeply relevant, college-specific engagement metrics.
-6. **Real-World Value:** Study match systems and verified placement data.
-7. **Mobile-First Design:** Built explicitly for the continuous smartphone usage patterns of modern students.
-
-> **Campus Connect — Built for Students. Loved by Engineers. Powered by Anonymity.**
+If you enjoy building products that blend social UX, realtime systems, and moderation challenges, this is a great place to contribute.
