@@ -13,6 +13,24 @@ from app.models.vote import Vote, VoteType
 from app.models.report import Report, ReportReason
 from app.models.user import User
 from app.services import moderation_service, trending_service
+from app.services import cache_service
+
+
+def _serialize_confession(c: Confession) -> dict:
+    return {
+        "id": str(c.id),
+        "content": c.content,
+        "category": c.category.value,
+        "college_id": c.college_id,
+        "score": c.score,
+        "upvotes": c.upvotes,
+        "downvotes": c.downvotes,
+        "view_count": c.view_count,
+        "comment_count": c.comment_count,
+        "reactions": c.reactions,
+        "trending_score": c.trending_score,
+        "created_at": c.created_at.isoformat(),
+    }
 
 
 # ── CREATE ────────────────────────────────────────────────────────────────────
@@ -54,6 +72,7 @@ def create_confession(
 
     # 3. Invalidate trending cache since a new post appeared
     trending_service.invalidate_trending_cache()
+    cache_service.invalidate_hot_feed()
 
     return confession
 
@@ -89,6 +108,16 @@ def get_feed(
         return cached, None  # no cursor for trending (pre-computed list)
 
     # DB query path
+    if sort == "hot":
+        hot_cached = cache_service.get_hot_feed(
+            cursor=cursor,
+            category=category.value if category else None,
+            college_id=college_id,
+            limit=limit,
+        )
+        if hot_cached:
+            return hot_cached["items"], hot_cached.get("next_cursor")
+
     q = (
         db.query(Confession)
         .filter(
@@ -132,6 +161,18 @@ def get_feed(
     if has_more and items:
         last = items[-1]
         next_cursor = last.created_at.isoformat()
+
+    if sort == "hot":
+        cache_service.set_hot_feed(
+            cursor=cursor,
+            category=category.value if category else None,
+            college_id=college_id,
+            limit=limit,
+            payload={
+                "items": [_serialize_confession(i) for i in items],
+                "next_cursor": next_cursor,
+            },
+        )
 
     return items, next_cursor
 
@@ -212,6 +253,7 @@ def vote(
         created_at=confession.created_at,
     )
     db.commit()
+    cache_service.invalidate_hot_feed()
     trending_service.invalidate_trending_cache()
 
     return {
@@ -242,6 +284,8 @@ def add_reaction(
     reactions[reaction] = reactions.get(reaction, 0) + 1
     confession.reactions = reactions
     db.commit()
+    cache_service.invalidate_hot_feed()
+    trending_service.invalidate_trending_cache()
     return reactions
 
 
@@ -288,6 +332,7 @@ def create_comment(
     confession.comment_count += 1
     db.commit()
     db.refresh(comment)
+    cache_service.invalidate_hot_feed()
     trending_service.invalidate_trending_cache()
     return comment
 
@@ -348,3 +393,5 @@ def report_confession(
         confession.is_removed = True
 
     db.commit()
+    cache_service.invalidate_hot_feed()
+    trending_service.invalidate_trending_cache()

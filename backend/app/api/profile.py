@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
@@ -6,7 +8,8 @@ from app.db.session import get_db
 from app.models.club import Club, ClubMembership
 from app.models.confession import Confession
 from app.models.event import Event, EventRSVP
-from app.models.user import User
+from app.models.user import User, UserRole
+from app.services import cache_service
 from app.schemas.club import ClubResponseSchema
 from app.schemas.confession import ConfessionResponseSchema
 from app.schemas.event import EventResponseSchema
@@ -17,6 +20,11 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
 
 @router.get("/me", response_model=ProfileResponseSchema)
 def profile_me(user: User = Depends(get_current_user)):
+    cached = cache_service.get_user_karma(str(user.id))
+    if cached and "karma" in cached:
+        user.karma = int(cached["karma"])
+    else:
+        cache_service.set_user_karma(str(user.id), int(user.karma))
     return user
 
 
@@ -26,7 +34,27 @@ def update_profile(payload: ProfileUpdateSchema, db: Session = Depends(get_db), 
         setattr(user, field, value)
     db.commit()
     db.refresh(user)
+    cache_service.invalidate_user_karma(str(user.id))
     return user
+
+
+@router.patch("/users/{user_id}/role")
+def update_user_role(
+    user_id: UUID,
+    role: UserRole,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role != UserRole.club_admin:
+        raise HTTPException(status_code=403, detail="Only club_admin can update user roles")
+
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target user not found")
+
+    target.role = role
+    db.commit()
+    return {"message": "Role updated", "user_id": str(target.id), "role": target.role.value}
 
 
 @router.get("/me/confessions", response_model=list[ConfessionResponseSchema])

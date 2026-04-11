@@ -1,7 +1,7 @@
 # app/core/deps.py
 
 import uuid
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -42,3 +42,22 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account banned.")
 
     return user
+
+
+def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -> User | None:
+    """Best-effort user extraction for rate limiting and telemetry."""
+    auth = request.headers.get("authorization")
+    if not auth or not auth.lower().startswith("bearer "):
+        return None
+
+    token = auth.split(" ", 1)[1].strip()
+    user_id_str = decode_access_token(token)
+    if not user_id_str:
+        return None
+
+    try:
+        user_id = uuid.UUID(user_id_str)
+    except ValueError:
+        return None
+
+    return db.query(User).filter(User.id == user_id).first()

@@ -162,10 +162,5 @@ def moderate(text: str) -> ModerationResult:
 # ── Comment moderation (lighter check) ────────────────────────────────────────
 
 def moderate_comment(text: str) -> ModerationResult:
-    """Same pipeline but lower thresholds — comments are shorter."""
-    result = moderate(text)
-    # Comments get a slightly stricter rejection threshold
-    if result.score >= 0.5 and result.status != ModerationStatus.rejected:
-        result.status = ModerationStatus.rejected
-        result.reasons.append("Comment exceeds stricter threshold (0.5)")
-    return result
+    """Comments use the same moderation thresholds as confessions in Phase 3."""
+    return moderate(text)

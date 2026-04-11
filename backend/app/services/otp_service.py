@@ -2,9 +2,11 @@
 
 import random
 import redis
+from datetime import datetime, timedelta
 from app.core.config import settings
 
 _redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
+_memory_otp_store: dict[str, tuple[str, datetime]] = {}
 
 
 def _otp_key(phone_hash: str) -> str:
@@ -17,7 +19,15 @@ def generate_and_store_otp(phone_hash: str) -> str:
     In production: send via Twilio instead of returning it.
     """
     otp = str(random.randint(100000, 999999))
-    _redis.setex(_otp_key(phone_hash), settings.OTP_EXPIRE_SECONDS, otp)
+    try:
+        _redis.setex(_otp_key(phone_hash), settings.OTP_EXPIRE_SECONDS, otp)
+    except Exception:
+        if settings.REDIS_STRICT_MODE:
+            raise RuntimeError("Redis unavailable and strict mode is enabled for OTP storage")
+        _memory_otp_store[_otp_key(phone_hash)] = (
+            otp,
+            datetime.utcnow() + timedelta(seconds=settings.OTP_EXPIRE_SECONDS),
+        )
     return otp
 
 
@@ -26,10 +36,25 @@ def verify_otp(phone_hash: str, otp: str) -> bool:
     Verify that the given OTP matches what's stored in Redis.
     Deletes the OTP after a successful match (one-time use).
     """
-    stored = _redis.get(_otp_key(phone_hash))
-    if stored and stored == otp:
-        _redis.delete(_otp_key(phone_hash))
-        return True
+    key = _otp_key(phone_hash)
+    try:
+        stored = _redis.get(key)
+        if stored and stored == otp:
+            _redis.delete(key)
+            return True
+    except Exception:
+        if settings.REDIS_STRICT_MODE:
+            raise RuntimeError("Redis unavailable and strict mode is enabled for OTP verification")
+        entry = _memory_otp_store.get(key)
+        if not entry:
+            return False
+        stored_otp, expires_at = entry
+        if datetime.utcnow() > expires_at:
+            _memory_otp_store.pop(key, None)
+            return False
+        if stored_otp == otp:
+            _memory_otp_store.pop(key, None)
+            return True
     return False
 
 

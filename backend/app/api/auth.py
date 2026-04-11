@@ -7,14 +7,19 @@ from app.core.security import hash_phone, create_access_token
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.middleware.rate_limit import limiter
 from app.schemas.auth import RequestOTPSchema, VerifyOTPSchema, TokenResponseSchema, MeResponseSchema
-from app.services import otp_service, auth_service
+from app.services import otp_service, auth_service, cache_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/request-otp", summary="Send OTP to phone number")
-def request_otp(payload: RequestOTPSchema, db: Session = Depends(get_db)):
+def request_otp(
+    payload: RequestOTPSchema,
+    db: Session = Depends(get_db),
+    _: None = Depends(limiter("otp_request", limit=3, window_seconds=600)),
+):
     """
     Step 1 of login flow.
     - Accepts phone number
@@ -62,10 +67,14 @@ def get_me(current_user: User = Depends(get_current_user)):
     Returns the authenticated user's anonymous profile.
     No real-world identity is ever included in this response.
     """
+    cached = cache_service.get_user_karma(str(current_user.id))
+    karma = cached.get("karma") if cached else current_user.karma
+    cache_service.set_user_karma(str(current_user.id), int(karma))
+
     return MeResponseSchema(
         id=str(current_user.id),
         anonymous_username=current_user.anonymous_username,
         college_id=current_user.college_id,
-        karma=current_user.karma,
+        karma=int(karma),
         status=current_user.status.value,
     )

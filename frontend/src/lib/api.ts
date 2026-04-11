@@ -77,7 +77,7 @@ export const api = {
       const q = new URLSearchParams();
       if (p.cursor) q.set("cursor", p.cursor);
       if (p.limit) q.set("limit", String(p.limit));
-      return req<any[]>(`/events/${id}/attendees?${q}`);
+      return req<{ items: any[] }>(`/events/${id}/attendees?${q}`).then((r) => r.items ?? []);
     },
     update: (id: string, body: any) => req<any>(`/events/${id}`, { method: "PUT", body: JSON.stringify(body) }, true),
     cancel: (id: string) => req<any>(`/events/${id}`, { method: "DELETE" }, true),
@@ -97,7 +97,7 @@ export const api = {
       const q = new URLSearchParams();
       if (p.cursor) q.set("cursor", p.cursor);
       if (p.limit) q.set("limit", String(p.limit));
-      return req<any[]>(`/clubs/${id}/members?${q}`);
+      return req<{ items: any[] }>(`/clubs/${id}/members?${q}`).then((r) => r.items ?? []);
     },
     events: (id: string, limit = 20) => req<any[]>(`/clubs/${id}/events?limit=${limit}`),
     update: (id: string, body: any) => req<any>(`/clubs/${id}`, { method: "PUT", body: JSON.stringify(body) }, true),
@@ -108,11 +108,17 @@ export const api = {
     readOne: (id: string) => req<any>(`/notifications/${id}/read`, { method: "PATCH" }, true),
   },
   polls: {
-    list: (limit = 20) => req<any[]>(`/polls?limit=${limit}`),
+    list: (limit = 20) => req<{ items: any[] }>(`/polls?limit=${limit}`).then((r) => r.items ?? []),
     create: (body: { question: string; options: string[]; ends_at?: string }) =>
       req<any>("/polls/", { method: "POST", body: JSON.stringify(body) }, true),
     vote: (id: string, option_index: number) =>
       req<any>(`/polls/${id}/vote`, { method: "POST", body: JSON.stringify({ option_index }) }, true),
+    get: (id: string) => req<any>(`/polls/${id}`),
+    results: (id: string) => req<any>(`/polls/${id}/results`),
+  },
+  search: {
+    all: (q: string, scope: "all" | "confessions" | "events" | "clubs" = "all", limit = 20) =>
+      req<any>(`/search?q=${encodeURIComponent(q)}&scope=${scope}&limit=${limit}`),
   },
   profile: {
     me: () => req<any>("/profile/me", {}, true),

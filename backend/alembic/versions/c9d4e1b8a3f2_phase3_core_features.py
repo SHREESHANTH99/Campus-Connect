@@ -33,7 +33,12 @@ def upgrade() -> None:
     op.add_column("users", sa.Column("bio", sa.String(length=240), nullable=True))
     op.add_column(
         "users",
-        sa.Column("role", sa.Enum("student", "club_admin", "organizer", name="user_role"), nullable=False, server_default="student"),
+        sa.Column(
+            "role",
+            postgresql.ENUM("student", "club_admin", "organizer", name="user_role", create_type=False),
+            nullable=False,
+            server_default="student",
+        ),
     )
     op.add_column("users", sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"))
 
@@ -80,7 +85,11 @@ def upgrade() -> None:
         "notifications",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("recipient_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("type", sa.Enum("reminder", "invite", "announce", "karma", "rsvp", name="notification_type"), nullable=False),
+        sa.Column(
+            "type",
+            postgresql.ENUM("reminder", "invite", "announce", "karma", "rsvp", name="notification_type", create_type=False),
+            nullable=False,
+        ),
         sa.Column("title", sa.String(length=160), nullable=False),
         sa.Column("message", sa.Text(), nullable=False),
         sa.Column("is_read", sa.Boolean(), nullable=False, server_default="false"),
@@ -115,7 +124,12 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("event_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("events.id", ondelete="CASCADE"), nullable=False),
         sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("status", sa.Enum("going", "waitlist", name="event_rsvp_status"), nullable=False, server_default="going"),
+        sa.Column(
+            "status",
+            postgresql.ENUM("going", "waitlist", name="event_rsvp_status", create_type=False),
+            nullable=False,
+            server_default="going",
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("NOW()")),
     )
     op.create_unique_constraint("uq_event_rsvp_user_event", "event_rsvps", ["event_id", "user_id"])

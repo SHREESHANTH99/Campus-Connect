@@ -8,6 +8,7 @@ from typing import Optional
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.confession import ConfessionCategory
+from app.middleware.rate_limit import limiter
 from app.models.user import User
 from app.schemas.confession import (
     ConfessionCreateSchema,
@@ -31,7 +32,8 @@ router = APIRouter(prefix="/confessions", tags=["Confessions"])
 @router.post("/", response_model=ConfessionResponseSchema, status_code=status.HTTP_201_CREATED,
              summary="Post an anonymous confession")
 def create_confession(payload: ConfessionCreateSchema, db: Session = Depends(get_db),
-                      user: User = Depends(get_current_user)):
+                      user: User = Depends(get_current_user),
+                      _: None = Depends(limiter("confession_create", limit=1, window_seconds=120))):
     """
     Posts a new anonymous confession.
     - Runs multi-layer moderation before storing
@@ -101,7 +103,8 @@ def get_confession(confession_id: UUID, background_tasks: BackgroundTasks,
 @router.post("/{confession_id}/vote", response_model=VoteResponseSchema,
              summary="Upvote or downvote (toggle-aware)")
 def vote(confession_id: UUID, payload: VoteSchema, db: Session = Depends(get_db),
-         user: User = Depends(get_current_user)):
+         user: User = Depends(get_current_user),
+         _: None = Depends(limiter("confession_vote", limit=30, window_seconds=60))):
     """Same vote twice = untoggle. Opposite vote = flip. Trending score updates instantly."""
     result = confession_service.vote(db, confession_id, user, payload.vote_type)
     return VoteResponseSchema(**result)
@@ -110,7 +113,12 @@ def vote(confession_id: UUID, payload: VoteSchema, db: Session = Depends(get_db)
 # ── POST /confessions/{id}/react ─────────────────────────────────────────────
 
 @router.post("/{confession_id}/react", summary="Add emoji reaction (no auth needed)")
-def react(confession_id: UUID, payload: ReactionSchema, db: Session = Depends(get_db)):
+def react(
+    confession_id: UUID,
+    payload: ReactionSchema,
+    db: Session = Depends(get_db),
+    _: None = Depends(limiter("confession_react", limit=10, window_seconds=60)),
+):
     """Valid reactions: relatable | shocking | supportive | spicy"""
     reactions = confession_service.add_reaction(db, confession_id, payload.reaction)
     return {"reactions": reactions}
@@ -121,7 +129,8 @@ def react(confession_id: UUID, payload: ReactionSchema, db: Session = Depends(ge
 @router.post("/{confession_id}/comments", response_model=CommentResponseSchema,
              status_code=status.HTTP_201_CREATED, summary="Post anonymous comment")
 def create_comment(confession_id: UUID, payload: CommentCreateSchema,
-                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+                   db: Session = Depends(get_db), user: User = Depends(get_current_user),
+                   _: None = Depends(limiter("confession_comment", limit=15, window_seconds=300))):
     """Set parent_id for replies. Max 1 level of threading."""
     comment = confession_service.create_comment(db=db, confession_id=confession_id, author=user,
                                                 content=payload.content, parent_id=payload.parent_id)
@@ -143,7 +152,8 @@ def get_comments(confession_id: UUID, limit: int = Query(30, ge=1, le=100),
 @router.post("/{confession_id}/report", status_code=status.HTTP_201_CREATED,
              summary="Report a confession")
 def report(confession_id: UUID, payload: ReportSchema, db: Session = Depends(get_db),
-           user: User = Depends(get_current_user)):
+           user: User = Depends(get_current_user),
+           _: None = Depends(limiter("confession_report", limit=5, window_seconds=3600))):
     """5 reports = auto-flagged. 10 reports = auto-removed. One report per user."""
     confession_service.report_confession(db=db, confession_id=confession_id, reporter=user,
                                          reason=payload.reason, description=payload.description)

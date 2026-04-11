@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, confessions, chat, polls, events, clubs, notifications, profile
+from app.api import auth, confessions, chat, polls, events, clubs, notifications, profile, search
 from app.core.config import settings
 
 app = FastAPI(
@@ -33,6 +33,7 @@ app.include_router(events.router,      prefix="/api")
 app.include_router(clubs.router,       prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(profile.router,     prefix="/api")
+app.include_router(search.router,      prefix="/api")
 
 
 # ── Health check ─────────────────────────────────────────────────────────────

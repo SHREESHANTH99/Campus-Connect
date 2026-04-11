@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_STRICT_MODE: bool = False
 
     # JWT
     SECRET_KEY: str = "your-super-secret-key-change-in-production"
